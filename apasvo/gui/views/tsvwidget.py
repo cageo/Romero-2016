@@ -37,6 +37,7 @@ matplotlib.rcParams['agg.path.chunksize'] = 80000
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter
+from time import *
 
 from apasvo.utils import plotting
 from apasvo.utils import clt
@@ -58,10 +59,14 @@ class StreamViewerWidget(QtGui.QWidget):
     def __init__(self, parent, stream=None):
         super(StreamViewerWidget, self).__init__(parent)
 
+        self.x=0
+        self.y=0
+        self.timestamp=0
+
         self.fig = plt.figure()
         self.canvas = FigureCanvas(self.fig)
         self.canvas.setSizePolicy(QtGui.QSizePolicy(QtGui.QSizePolicy.Policy.Expanding,
-                                                    QtGui.QSizePolicy.Policy.Expanding))
+                                                 QtGui.QSizePolicy.Policy.Expanding))
         self.canvas.setMinimumHeight(320)
         self.graphArea = QtGui.QScrollArea(self)
         self.graphArea.setWidget(self.canvas)
@@ -72,7 +77,13 @@ class StreamViewerWidget(QtGui.QWidget):
 
         self.press_selector = None
         self.canvas.mpl_connect('button_press_event', self.on_press)
+        self.canvas.mpl_connect('motion_notify_event', self.on_move)
 
+        #bbox = dict(boxstyle="round", fc="LightCoral", ec="r", alpha=0.8)
+        #self.position_label = self.fig.text(0, 0,"Nombre de la traza", bbox=bbox)
+        #self.position_label.set_visible(False)
+
+        #self.canvas.setToolTip('Rebell Yell')
         # Animation related attrs.
         self.background = []
         self.animated = False
@@ -105,13 +116,26 @@ class StreamViewerWidget(QtGui.QWidget):
         self.draw()
 
     def on_press(self, event):
-        if event.button == 1:
+        if event.button == 1 and event.dblclick:
             for i, axes in enumerate(self.fig.axes):
                 ymin, ymax = axes.get_position().ymin, axes.get_position().ymax
                 _, yfig = self._event_to_fig_coords(event)
                 if ymin <= yfig <= ymax:
                     self.trace_selected.emit(i)
                     break
+
+
+    def on_move(self,event):
+
+        for i, axes in enumerate(self.fig.axes):
+            ymin, ymax = axes.get_position().ymin, axes.get_position().ymax
+            _, yfig = self._event_to_fig_coords(event)
+            if ymin <= yfig <= ymax:
+                trace= self.stream.traces[i]
+                self.canvas.setToolTip("Nombre de la traza")
+                break
+
+
 
     def _event_to_fig_coords(self, event):
         inv = self.fig.transFigure.inverted()
@@ -183,13 +207,16 @@ class StreamViewerWidget(QtGui.QWidget):
             # Format axes
             axes_formatter = FuncFormatter(lambda x, pos: clt.float_secs_2_string_date(x, trace.starttime))
             ax.xaxis.set_major_formatter(axes_formatter)
+
             plt.setp(ax.get_xticklabels(), visible=True)
+
             ax.grid(True, which='both')
 
     def remove_trace(self, idx):
         self.fig.delaxes(self.fig.axes[idx])
         self.subplots_adjust()
         self.canvas.draw()
+
 
     def subplots_adjust(self):
         visible_subplots = [ax for ax in self.fig.get_axes() if ax.get_visible()]
