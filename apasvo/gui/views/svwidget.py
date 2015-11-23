@@ -827,7 +827,6 @@ class SignalViewerWidget(QtGui.QWidget):
         self.graphArea = QtGui.QScrollArea(self)
         self.graphArea.setWidget(self.canvas)
         self.graphArea.setWidgetResizable(True)
-
         self.eventMarkers = {}
         self.last_right_clicked_event = None
         self.thresholdMarker = None
